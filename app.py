@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import joblib
 import re
+import textwrap
+import html as html_escape
 import plotly.express as px
 
 
@@ -10,7 +12,7 @@ import plotly.express as px
 # =========================================================
 
 st.set_page_config(
-    page_title="ReviewSense | Sentiment Analysis",
+    page_title="ReviewSense | Customer Sentiment Analysis",
     page_icon="🛒",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -18,459 +20,538 @@ st.set_page_config(
 
 
 # =========================================================
+# HTML HELPER
+# =========================================================
+# This prevents Streamlit from displaying HTML as plain text.
+
+def render_html(content):
+    st.markdown(
+        textwrap.dedent(content),
+        unsafe_allow_html=True
+    )
+
+
+# =========================================================
 # CUSTOM CSS
 # =========================================================
 
-st.markdown("""
+render_html("""
 <style>
 
-/* =====================================================
-   MAIN PAGE
-===================================================== */
-
-.stApp {
-    background:
-        radial-gradient(circle at 85% 5%, #f5eaff 0%, transparent 25%),
-        radial-gradient(circle at 20% 20%, #e9f2ff 0%, transparent 30%),
-        linear-gradient(135deg, #f7f9ff, #fbfaff);
-}
-
-.block-container {
-    max-width: 1500px;
-    padding-top: 1.5rem;
-    padding-bottom: 2rem;
-}
-
-
-/* =====================================================
-   SIDEBAR
-===================================================== */
-
-section[data-testid="stSidebar"] {
-    background: linear-gradient(
-        180deg,
-        #edf3ff 0%,
-        #f2efff 55%,
-        #f8f4ff 100%
-    );
-
-    border-right: 1px solid #e0e6f4;
-}
-
-.sidebar-brand {
-    padding: 10px 5px 20px 5px;
-}
-
-.sidebar-logo {
-    font-size: 30px;
-}
-
-.sidebar-brand-name {
-    font-size: 25px;
-    font-weight: 800;
-    color: #172b61;
-}
-
-.sidebar-brand-sub {
-    font-size: 13px;
-    color: #687594;
-    margin-left: 3px;
-}
-
-.sidebar-line {
-    height: 1px;
-    background: #d6ddec;
-    margin: 12px 0 25px 0;
-}
-
-.sidebar-section {
-    color: #697592;
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.sidebar-quote {
-    background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(255,255,255,0.9);
-    border-radius: 20px;
-    padding: 22px 15px;
-    margin-top: 35px;
-    text-align: center;
-    color: #596789;
-    font-size: 15px;
-    font-style: italic;
-    line-height: 1.7;
-    box-shadow: 0 5px 20px rgba(60,70,120,0.05);
-}
-
-
-/* =====================================================
-   SIDEBAR BUTTONS
-===================================================== */
-
-section[data-testid="stSidebar"] .stButton > button {
-    background: transparent;
-    color: #172b61;
-    border: none;
-    text-align: left;
-    box-shadow: none;
-    border-radius: 12px;
-    font-size: 15px;
-    font-weight: 500;
-    padding: 10px 14px;
-    min-height: 42px;
-}
-
-section[data-testid="stSidebar"] .stButton > button:hover {
-    background: rgba(99,91,255,0.10);
-    color: #4d46d9;
-}
-
-
-/* =====================================================
-   HERO
-===================================================== */
-
-.welcome-text {
-    color: #667399;
-    font-size: 20px;
-    font-weight: 500;
-    margin-bottom: 3px;
-}
-
-.hero-title {
-    font-size: 44px;
-    line-height: 1.12;
-    font-weight: 850;
-
-    background: linear-gradient(
-        90deg,
-        #163b91,
-        #315bd5,
-        #7228dc
-    );
-
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.hero-subtitle {
-    color: #66728f;
-    font-size: 17px;
-    line-height: 1.6;
-    margin-top: 8px;
-}
-
-.hero-art {
-    background:
-        radial-gradient(circle at 30% 30%, #ffffff 0%, transparent 28%),
-        linear-gradient(135deg, #eeeaff, #fceaf5);
-    border-radius: 25px;
-    min-height: 170px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.hero-art-main {
-    font-size: 80px;
-    z-index: 2;
-}
-
-.hero-art-text {
-    position: absolute;
-    top: 17px;
-    right: 18px;
-    color: #34427b;
-    font-style: italic;
-    font-size: 15px;
-    text-align: center;
-}
-
-.hero-art-bottom {
-    position: absolute;
-    bottom: -20px;
-    right: 20px;
-    font-size: 80px;
-}
-
-
-/* =====================================================
-   METRIC CARDS
-===================================================== */
-
-.metric-card {
-    border-radius: 21px;
-    padding: 20px;
-    min-height: 138px;
-    border: 1px solid rgba(255,255,255,0.9);
-    box-shadow: 0 8px 25px rgba(48,61,110,0.08);
-}
-
-.positive {
-    background: linear-gradient(135deg,#e8fff2,#f8fffb);
-}
-
-.neutral {
-    background: linear-gradient(135deg,#fff8df,#fffdf5);
-}
-
-.negative {
-    background: linear-gradient(135deg,#ffedf1,#fff9fa);
-}
-
-.metric-icon {
-    font-size: 39px;
-    float: left;
-    margin-right: 13px;
-}
-
-.metric-label {
-    color: #26385f;
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.metric-number {
-    color: #142452;
-    font-size: 33px;
-    font-weight: 850;
-    line-height: 1.15;
-    margin-top: 4px;
-}
-
-.metric-percent {
-    color: #6a7692;
-    font-size: 14px;
-    margin-top: 5px;
-}
-
-
-/* =====================================================
-   GENERAL CARDS
-===================================================== */
-
-.card {
-    background: rgba(255,255,255,0.93);
-    border: 1px solid #e9edf7;
-    border-radius: 22px;
-    padding: 23px;
-    box-shadow: 0 8px 28px rgba(43,55,100,0.065);
-}
-
-.section-title {
-    color: #172b61;
-    font-size: 24px;
-    font-weight: 800;
-}
-
-.section-subtitle {
-    color: #687593;
-    font-size: 15px;
-    margin-top: 5px;
-    margin-bottom: 15px;
-}
-
-
-/* =====================================================
-   INPUT
-===================================================== */
-
-.stTextArea textarea {
-    background: #f7f9fd !important;
-    border: 1px solid #dbe1ef !important;
-    border-radius: 13px !important;
-    color: #27365a !important;
-    font-size: 15px !important;
-}
-
-
-/* =====================================================
-   BUTTON
-===================================================== */
-
-.stButton > button {
-    border-radius: 13px;
-    min-height: 48px;
-    border: none;
-    font-size: 16px;
-    font-weight: 650;
-
-    background: linear-gradient(
-        90deg,
-        #625cff,
-        #7450e8
-    );
-
-    color: white;
-
-    box-shadow:
-        0 7px 18px rgba(92,83,220,0.22);
-}
-
-.stButton > button:hover {
-    color: white;
-    background: linear-gradient(
-        90deg,
-        #5148eb,
-        #663dd3
-    );
-}
-
-
-/* =====================================================
-   RESULT
-===================================================== */
-
-.result-card {
-    border-radius: 18px;
-    padding: 20px;
-    margin-top: 15px;
-    text-align: center;
-}
-
-.result-positive {
-    background: #ecfff5;
-    border: 1px solid #afe8c9;
-}
-
-.result-negative {
-    background: #fff0f2;
-    border: 1px solid #ffb9c3;
-}
-
-.result-neutral {
-    background: #fff9e8;
-    border: 1px solid #f1d77d;
-}
-
-.result-title {
-    font-size: 27px;
-    font-weight: 800;
-    color: #172b61;
-}
-
-.review-box {
-    background: white;
-    border-radius: 11px;
-    padding: 13px;
-    color: #65718b;
-    margin-top: 12px;
-    font-style: italic;
-}
-
-
-/* =====================================================
-   INSIGHT CARDS
-===================================================== */
-
-.insight-card {
-    background: white;
-    border: 1px solid #e6eaf4;
-    border-radius: 16px;
-    padding: 17px;
-    min-height: 115px;
-    box-shadow: 0 5px 18px rgba(40,55,100,0.05);
-}
-
-.insight-icon {
-    font-size: 31px;
-}
-
-.insight-title {
-    color: #1c3470;
-    font-size: 15px;
-    font-weight: 700;
-    margin-top: 5px;
-}
-
-.insight-value {
-    color: #172b61;
-    font-size: 25px;
-    font-weight: 850;
-}
-
-
-/* =====================================================
-   GOAL
-===================================================== */
-
-.goal-banner {
-    background:
-        radial-gradient(
-            circle at 85% 50%,
-            rgba(255,255,255,0.7),
-            transparent 25%
-        ),
-        linear-gradient(
-            110deg,
-            #eee8ff,
-            #e9f1ff,
-            #fff0fa
+    /* =====================================================
+       GLOBAL
+    ===================================================== */
+
+    .stApp {
+        background:
+            radial-gradient(
+                circle at 85% 5%,
+                rgba(226, 218, 255, 0.65),
+                transparent 28%
+            ),
+            radial-gradient(
+                circle at 15% 15%,
+                rgba(218, 235, 255, 0.60),
+                transparent 30%
+            ),
+            linear-gradient(
+                135deg,
+                #f7f9ff 0%,
+                #fbfaff 50%,
+                #fff9fc 100%
+            );
+    }
+
+    .block-container {
+        max-width: 1500px;
+        padding-top: 1.3rem;
+        padding-bottom: 2rem;
+    }
+
+
+    /* =====================================================
+       SIDEBAR
+    ===================================================== */
+
+    section[data-testid="stSidebar"] {
+        background:
+            linear-gradient(
+                180deg,
+                #edf3ff 0%,
+                #f1efff 50%,
+                #f8f4ff 100%
+            );
+
+        border-right: 1px solid #dfe5f3;
+    }
+
+    .brand-container {
+        padding: 8px 5px 18px 5px;
+    }
+
+    .brand-icon {
+        font-size: 30px;
+        vertical-align: middle;
+    }
+
+    .brand-name {
+        color: #142a60;
+        font-size: 25px;
+        font-weight: 850;
+        vertical-align: middle;
+    }
+
+    .brand-tagline {
+        color: #697694;
+        font-size: 12px;
+        margin-left: 38px;
+        margin-top: -2px;
+    }
+
+    .sidebar-divider {
+        height: 1px;
+        background: #d6ddec;
+        margin: 10px 0 24px 0;
+    }
+
+    .nav-heading {
+        color: #687593;
+        font-size: 14px;
+        font-weight: 650;
+        margin-bottom: 8px;
+    }
+
+    section[data-testid="stSidebar"] .stButton {
+        margin-bottom: 4px;
+    }
+
+    section[data-testid="stSidebar"] .stButton > button {
+        width: 100%;
+        background: transparent;
+        color: #1b2e5c;
+        border: none;
+        border-radius: 12px;
+        text-align: left;
+        font-size: 15px;
+        font-weight: 550;
+        min-height: 43px;
+        box-shadow: none;
+        padding-left: 14px;
+    }
+
+    section[data-testid="stSidebar"] .stButton > button:hover {
+        background: rgba(99, 91, 255, 0.12);
+        color: #5148d9;
+    }
+
+    .sidebar-quote {
+        margin-top: 35px;
+        padding: 22px 14px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.72);
+        border: 1px solid rgba(255,255,255,0.9);
+        box-shadow: 0 7px 22px rgba(50,65,110,0.05);
+        text-align: center;
+        color: #596887;
+        font-size: 15px;
+        font-style: italic;
+        line-height: 1.75;
+    }
+
+    .sidebar-footer {
+        text-align: center;
+        color: #687594;
+        font-size: 14px;
+        margin-top: 50px;
+        line-height: 1.7;
+    }
+
+
+    /* =====================================================
+       HERO
+    ===================================================== */
+
+    .welcome {
+        color: #687593;
+        font-size: 19px;
+        font-weight: 500;
+        margin-bottom: 2px;
+    }
+
+    .hero-title {
+        font-size: 43px;
+        font-weight: 850;
+        line-height: 1.12;
+
+        background: linear-gradient(
+            90deg,
+            #153a8f 0%,
+            #315bd4 45%,
+            #7025d8 100%
         );
 
-    border-radius: 22px;
-    padding: 24px 28px;
-    margin-top: 20px;
-    border: 1px solid #e0daf5;
-}
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
 
-.goal-title {
-    color: #172b61;
-    font-size: 25px;
-    font-weight: 850;
-}
+    .hero-description {
+        color: #65728f;
+        font-size: 16px;
+        line-height: 1.6;
+        margin-top: 8px;
+    }
 
-.goal-text {
-    color: #596782;
-    font-size: 16px;
-    line-height: 1.6;
-}
+    .hero-art {
+        height: 170px;
+        border-radius: 25px;
+        background:
+            radial-gradient(
+                circle at 20% 30%,
+                rgba(255,255,255,0.9),
+                transparent 25%
+            ),
+            linear-gradient(
+                135deg,
+                #eee9ff,
+                #eaf1ff,
+                #fdebf7
+            );
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 8px 25px rgba(60,70,120,0.05);
+    }
+
+    .hero-person {
+        font-size: 76px;
+        margin-top: 30px;
+    }
+
+    .hero-review-one,
+    .hero-review-two,
+    .hero-review-three {
+        position: absolute;
+        background: white;
+        border-radius: 12px;
+        padding: 7px 12px;
+        box-shadow: 0 5px 15px rgba(50,60,100,0.10);
+        font-size: 13px;
+    }
+
+    .hero-review-one {
+        top: 12px;
+        left: 10px;
+    }
+
+    .hero-review-two {
+        top: 42px;
+        right: 10px;
+    }
+
+    .hero-review-three {
+        bottom: 12px;
+        left: 14px;
+    }
 
 
-/* =====================================================
-   PAGE HEADER
-===================================================== */
+    /* =====================================================
+       METRIC CARDS
+    ===================================================== */
 
-.page-title {
-    font-size: 39px;
-    font-weight: 850;
-    color: #172b61;
-}
+    .metric-card {
+        border-radius: 20px;
+        padding: 20px;
+        min-height: 138px;
+        border: 1px solid rgba(255,255,255,0.95);
+        box-shadow: 0 8px 26px rgba(48,60,110,0.08);
+    }
 
-.page-subtitle {
-    color: #687593;
-    font-size: 16px;
-    margin-bottom: 25px;
-}
+    .positive-card {
+        background: linear-gradient(
+            135deg,
+            #e6fff1,
+            #f8fffb
+        );
+    }
+
+    .neutral-card {
+        background: linear-gradient(
+            135deg,
+            #fff8df,
+            #fffdf7
+        );
+    }
+
+    .negative-card {
+        background: linear-gradient(
+            135deg,
+            #ffedf1,
+            #fff9fa
+        );
+    }
+
+    .metric-icon {
+        float: left;
+        font-size: 40px;
+        margin-right: 14px;
+    }
+
+    .metric-label {
+        color: #26375e;
+        font-size: 16px;
+        font-weight: 650;
+    }
+
+    .metric-number {
+        color: #122554;
+        font-size: 34px;
+        font-weight: 850;
+        line-height: 1.1;
+        margin-top: 5px;
+    }
+
+    .metric-percent {
+        color: #687594;
+        font-size: 14px;
+        margin-top: 5px;
+    }
 
 
-/* =====================================================
-   FOOTER
-===================================================== */
+    /* =====================================================
+       SECTION TITLES
+    ===================================================== */
 
-.footer {
-    text-align: center;
-    color: #71809e;
-    font-size: 14px;
-    padding: 25px 0 5px 0;
-}
+    .section-title {
+        color: #172b61;
+        font-size: 24px;
+        font-weight: 800;
+        margin-bottom: 3px;
+    }
+
+    .section-subtitle {
+        color: #687593;
+        font-size: 15px;
+        margin-bottom: 15px;
+    }
+
+
+    /* =====================================================
+       REVIEW CARD
+    ===================================================== */
+
+    .review-card {
+        background: rgba(255,255,255,0.94);
+        border: 1px solid #e8edf7;
+        border-radius: 22px;
+        padding: 22px;
+        box-shadow: 0 8px 26px rgba(45,55,100,0.065);
+    }
+
+    .stTextArea textarea {
+        background: #f7f9fd !important;
+        border: 1px solid #d9e0ef !important;
+        border-radius: 13px !important;
+        color: #26375c !important;
+        font-size: 15px !important;
+    }
+
+    .stTextArea textarea:focus {
+        border-color: #7469ed !important;
+        box-shadow: 0 0 0 1px #7469ed !important;
+    }
+
+
+    /* =====================================================
+       BUTTON
+    ===================================================== */
+
+    .stButton > button {
+        min-height: 48px;
+        border-radius: 13px;
+        border: none;
+
+        background: linear-gradient(
+            90deg,
+            #625cff,
+            #7351e8
+        );
+
+        color: white;
+        font-size: 16px;
+        font-weight: 650;
+
+        box-shadow:
+            0 7px 18px rgba(91,83,220,0.23);
+    }
+
+    .stButton > button:hover {
+        background: linear-gradient(
+            90deg,
+            #5148e8,
+            #643ed2
+        );
+
+        color: white;
+    }
+
+
+    /* =====================================================
+       RESULT CARDS
+    ===================================================== */
+
+    .result-card {
+        border-radius: 18px;
+        padding: 20px;
+        margin-top: 15px;
+        text-align: center;
+    }
+
+    .result-positive {
+        background: #ecfff5;
+        border: 1px solid #afe8c9;
+    }
+
+    .result-negative {
+        background: #fff0f2;
+        border: 1px solid #ffb9c2;
+    }
+
+    .result-neutral {
+        background: #fff9e8;
+        border: 1px solid #f0d477;
+    }
+
+    .result-title {
+        color: #172b61;
+        font-size: 27px;
+        font-weight: 800;
+    }
+
+    .review-box {
+        background: white;
+        border-radius: 11px;
+        padding: 13px;
+        margin-top: 12px;
+        color: #64708b;
+        font-style: italic;
+    }
+
+
+    /* =====================================================
+       INSIGHT CARDS
+    ===================================================== */
+
+    .insight-card {
+        background: white;
+        border: 1px solid #e6ebf5;
+        border-radius: 16px;
+        padding: 17px;
+        min-height: 108px;
+        box-shadow: 0 5px 18px rgba(45,55,100,0.05);
+    }
+
+    .insight-icon {
+        font-size: 30px;
+    }
+
+    .insight-title {
+        color: #1d3470;
+        font-size: 14px;
+        font-weight: 650;
+        margin-top: 4px;
+    }
+
+    .insight-value {
+        color: #172b61;
+        font-size: 25px;
+        font-weight: 850;
+        margin-top: 2px;
+    }
+
+
+    /* =====================================================
+       GOAL BANNER
+    ===================================================== */
+
+    .goal-banner {
+        background:
+            radial-gradient(
+                circle at 88% 50%,
+                rgba(255,255,255,0.8),
+                transparent 25%
+            ),
+            linear-gradient(
+                110deg,
+                #eee8ff,
+                #eaf1ff,
+                #fff0fa
+            );
+
+        border-radius: 22px;
+        padding: 23px 28px;
+        border: 1px solid #e0daf5;
+        margin-top: 20px;
+    }
+
+    .goal-title {
+        color: #172b61;
+        font-size: 24px;
+        font-weight: 850;
+    }
+
+    .goal-text {
+        color: #596782;
+        font-size: 16px;
+        line-height: 1.6;
+        margin-top: 5px;
+    }
+
+
+    /* =====================================================
+       PAGE HEADERS
+    ===================================================== */
+
+    .page-title {
+        color: #172b61;
+        font-size: 40px;
+        font-weight: 850;
+    }
+
+    .page-subtitle {
+        color: #687593;
+        font-size: 16px;
+        margin-bottom: 25px;
+    }
+
+
+    /* =====================================================
+       FOOTER
+    ===================================================== */
+
+    .footer {
+        text-align: center;
+        color: #71809e;
+        font-size: 14px;
+        line-height: 1.7;
+        padding: 28px 0 5px 0;
+    }
 
 </style>
-""", unsafe_allow_html=True)
+""")
 
 
 # =========================================================
-# LOAD DATA
+# LOAD DATASET
 # =========================================================
 
 @st.cache_data
 def load_data():
 
-    df = pd.read_excel("P652-Dataset.xlsx")
+    data = pd.read_excel(
+        "P652-Dataset.xlsx"
+    )
 
     def rating_to_sentiment(rating):
 
@@ -483,18 +564,18 @@ def load_data():
         else:
             return "Positive"
 
-    df["sentiment"] = df["rating"].apply(
+    data["sentiment"] = data["rating"].apply(
         rating_to_sentiment
     )
 
-    return df
+    return data
 
 
 df = load_data()
 
 
 # =========================================================
-# LOAD MODEL
+# LOAD TRAINED MODEL
 # =========================================================
 
 @st.cache_resource
@@ -514,7 +595,7 @@ tfidf, model = load_model()
 
 
 # =========================================================
-# TEXT CLEANING
+# TEXT PREPROCESSING
 # =========================================================
 
 def clean_text(text):
@@ -549,34 +630,45 @@ def clean_text(text):
 
 
 # =========================================================
-# PREDICTION
+# SENTIMENT PREDICTION
 # =========================================================
 
 def predict_sentiment(review):
 
-    cleaned = clean_text(review)
+    cleaned_review = clean_text(
+        review
+    )
 
-    vector = tfidf.transform(
-        [cleaned]
+    review_vector = tfidf.transform(
+        [cleaned_review]
     )
 
     prediction = model.predict(
-        vector
+        review_vector
     )[0]
 
     confidence = None
 
-    if hasattr(model, "predict_proba"):
+    probabilities = None
+
+    if hasattr(
+        model,
+        "predict_proba"
+    ):
 
         probabilities = model.predict_proba(
-            vector
+            review_vector
         )[0]
 
         confidence = (
             max(probabilities) * 100
         )
 
-    return prediction, confidence
+    return (
+        prediction,
+        confidence,
+        probabilities
+    )
 
 
 # =========================================================
@@ -598,22 +690,28 @@ negative_count = (
 ).sum()
 
 positive_pct = (
-    positive_count / total_reviews * 100
+    positive_count /
+    total_reviews *
+    100
 )
 
 neutral_pct = (
-    neutral_count / total_reviews * 100
+    neutral_count /
+    total_reviews *
+    100
 )
 
 negative_pct = (
-    negative_count / total_reviews * 100
+    negative_count /
+    total_reviews *
+    100
 )
 
 average_rating = df["rating"].mean()
 
 
 # =========================================================
-# SIDEBAR NAVIGATION
+# SESSION STATE
 # =========================================================
 
 if "page" not in st.session_state:
@@ -621,113 +719,120 @@ if "page" not in st.session_state:
     st.session_state.page = "Home"
 
 
+# =========================================================
+# SIDEBAR
+# =========================================================
+
 with st.sidebar:
 
-    st.markdown(
-        """
-        <div class="sidebar-brand">
+    render_html("""
+    <div class="brand-container">
 
-            <span class="sidebar-logo">🛒</span>
+        <span class="brand-icon">🛒</span>
 
-            <span class="sidebar-brand-name">
-            ReviewSense
-            </span>
+        <span class="brand-name">
+        ReviewSense
+        </span>
 
-            <div class="sidebar-brand-sub">
-            Understand • Improve • Grow
-            </div>
-
+        <div class="brand-tagline">
+        Understand • Improve • Grow
         </div>
-        """,
-        unsafe_allow_html=True
+
+    </div>
+    """)
+
+    render_html(
+        '<div class="sidebar-divider"></div>'
     )
 
-    st.markdown(
-        '<div class="sidebar-line"></div>',
-        unsafe_allow_html=True
-    )
-
-    st.markdown(
-        '<div class="sidebar-section">Navigation</div>',
-        unsafe_allow_html=True
+    render_html(
+        '<div class="nav-heading">Navigation</div>'
     )
 
 
+    # HOME
     if st.button(
         "🏠  Home",
+        key="nav_home",
         use_container_width=True
     ):
+
         st.session_state.page = "Home"
 
 
+    # SINGLE REVIEW
     if st.button(
         "💬  Single Review",
+        key="nav_single",
         use_container_width=True
     ):
+
         st.session_state.page = "Single Review"
 
 
+    # BATCH
     if st.button(
         "📄  Batch Prediction",
+        key="nav_batch",
         use_container_width=True
     ):
+
         st.session_state.page = "Batch Prediction"
 
 
+    # VISUALIZATIONS
     if st.button(
         "📊  Visualizations",
+        key="nav_visual",
         use_container_width=True
     ):
+
         st.session_state.page = "Visualizations"
 
 
+    # MODEL
     if st.button(
         "🏆  Model Performance",
+        key="nav_model",
         use_container_width=True
     ):
+
         st.session_state.page = "Model Performance"
 
 
+    # ABOUT
     if st.button(
         "ℹ️  About",
+        key="nav_about",
         use_container_width=True
     ):
+
         st.session_state.page = "About"
 
 
-    st.markdown(
-        """
-        <div class="sidebar-quote">
+    render_html("""
+    <div class="sidebar-quote">
 
         💬<br><br>
 
         “Every review is a story.<br>
         Let's turn them into insights.”
 
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    </div>
+    """)
 
-    st.markdown(
-        "<br><br><br>",
-        unsafe_allow_html=True
-    )
 
-    st.markdown(
-        """
-        <div style="
-        text-align:center;
-        color:#687594;
-        font-size:14px;">
+    render_html("""
+    <div class="sidebar-footer">
 
         ❤️ Built with Streamlit<br>
-        <small>Made for a better tomorrow</small>
 
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        <small>
+        Made for better decisions
+        </small>
+
+    </div>
+    """)
 
 
 page = st.session_state.page
@@ -744,185 +849,171 @@ if page == "Home":
     # -----------------------------------------------------
 
     hero_left, hero_right = st.columns(
-        [3.4, 1]
+        [3.2, 1]
     )
+
 
     with hero_left:
 
-        st.markdown(
-            """
-            <div class="welcome-text">
-            Welcome to
-            </div>
+        render_html("""
+        <div class="welcome">
+        Welcome to
+        </div>
 
-            <div class="hero-title">
-            Customer Review Sentiment Analysis
-            </div>
+        <div class="hero-title">
+        Customer Review Sentiment Analysis
+        </div>
 
-            <div class="hero-subtitle">
-            Turn customer feedback into meaningful insights
-            with the power of NLP and Machine Learning.
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        <div class="hero-description">
+        Turn customer feedback into meaningful insights
+        with the power of NLP and Machine Learning.
+        </div>
+        """)
 
 
     with hero_right:
 
-        st.markdown(
-            """
-            <div class="hero-art">
+        render_html("""
+        <div class="hero-art">
 
-                <div class="hero-art-text">
-                “Happy Customers<br>
-                Brighter Businesses”
-                </div>
-
-                <div class="hero-art-main">
-                👩‍💻
-                </div>
-
-                <div class="hero-art-bottom">
-                📈
-                </div>
-
+            <div class="hero-review-one">
+            😊 ⭐⭐⭐⭐⭐
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+
+            <div class="hero-review-two">
+            😐 ⭐⭐⭐
+            </div>
+
+            <div class="hero-review-three">
+            😞 ⭐⭐
+            </div>
+
+            <div class="hero-person">
+            👩‍💻
+            </div>
+
+        </div>
+        """)
 
 
     st.markdown("<br>", unsafe_allow_html=True)
 
 
     # -----------------------------------------------------
-    # METRIC CARDS
+    # METRICS
     # -----------------------------------------------------
 
-    c1, c2, c3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
 
-    with c1:
+    with col1:
 
-        st.markdown(
-            f"""
-            <div class="metric-card positive">
+        render_html(f"""
+        <div class="metric-card positive-card">
 
-                <div class="metric-icon">
-                😊
-                </div>
-
-                <div class="metric-label">
-                Positive Reviews
-                </div>
-
-                <div class="metric-number">
-                {positive_count}
-                </div>
-
-                <div class="metric-percent">
-                {positive_pct:.1f}% of total
-                </div>
-
+            <div class="metric-icon">
+            😊
             </div>
-            """,
-            unsafe_allow_html=True
-        )
 
-
-    with c2:
-
-        st.markdown(
-            f"""
-            <div class="metric-card neutral">
-
-                <div class="metric-icon">
-                😐
-                </div>
-
-                <div class="metric-label">
-                Neutral Reviews
-                </div>
-
-                <div class="metric-number">
-                {neutral_count}
-                </div>
-
-                <div class="metric-percent">
-                {neutral_pct:.1f}% of total
-                </div>
-
+            <div class="metric-label">
+            Positive Reviews
             </div>
-            """,
-            unsafe_allow_html=True
-        )
 
-
-    with c3:
-
-        st.markdown(
-            f"""
-            <div class="metric-card negative">
-
-                <div class="metric-icon">
-                😞
-                </div>
-
-                <div class="metric-label">
-                Negative Reviews
-                </div>
-
-                <div class="metric-number">
-                {negative_count}
-                </div>
-
-                <div class="metric-percent">
-                {negative_pct:.1f}% of total
-                </div>
-
+            <div class="metric-number">
+            {positive_count}
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+
+            <div class="metric-percent">
+            {positive_pct:.1f}% of total
+            </div>
+
+        </div>
+        """)
+
+
+    with col2:
+
+        render_html(f"""
+        <div class="metric-card neutral-card">
+
+            <div class="metric-icon">
+            😐
+            </div>
+
+            <div class="metric-label">
+            Neutral Reviews
+            </div>
+
+            <div class="metric-number">
+            {neutral_count}
+            </div>
+
+            <div class="metric-percent">
+            {neutral_pct:.1f}% of total
+            </div>
+
+        </div>
+        """)
+
+
+    with col3:
+
+        render_html(f"""
+        <div class="metric-card negative-card">
+
+            <div class="metric-icon">
+            😞
+            </div>
+
+            <div class="metric-label">
+            Negative Reviews
+            </div>
+
+            <div class="metric-number">
+            {negative_count}
+            </div>
+
+            <div class="metric-percent">
+            {negative_pct:.1f}% of total
+            </div>
+
+        </div>
+        """)
 
 
     st.markdown("<br>", unsafe_allow_html=True)
 
 
     # -----------------------------------------------------
-    # REVIEW + PIE
+    # REVIEW + PIE CHART
     # -----------------------------------------------------
 
-    left, right = st.columns(
+    left_col, right_col = st.columns(
         [1.05, 0.95]
     )
 
 
-    # REVIEW CARD
-    with left:
+    # REVIEW
+    with left_col:
 
-        st.markdown(
-            """
-            <div class="card">
+        render_html("""
+        <div class="review-card">
 
-                <div class="section-title">
-                💬 Analyze a Single Review
-                </div>
-
-                <div class="section-subtitle">
-                Enter a customer review below and get
-                the predicted sentiment.
-                </div>
-
+            <div class="section-title">
+            💬 Analyze a Single Review
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+
+            <div class="section-subtitle">
+            Enter a customer review below and get
+            the predicted sentiment.
+            </div>
+
+        </div>
+        """)
 
 
         review = st.text_area(
-            "review",
+            "review_home",
             placeholder=
             "Example: The product quality is excellent and I really love it!",
             height=135,
@@ -932,7 +1023,7 @@ if page == "Home":
 
         if st.button(
             "🔍  Analyze Sentiment",
-            key="home_analysis",
+            key="home_analyze",
             use_container_width=True
         ):
 
@@ -944,112 +1035,108 @@ if page == "Home":
 
             else:
 
-                sentiment, confidence = (
+                sentiment, confidence, probabilities = (
                     predict_sentiment(review)
+                )
+
+
+                safe_review = html_escape.escape(
+                    review
                 )
 
 
                 if sentiment == "Positive":
 
-                    st.markdown(
-                        f"""
-                        <div class="result-card result-positive">
+                    render_html(f"""
+                    <div class="result-card result-positive">
 
-                            <div class="result-title">
-                            😊 Positive Sentiment
-                            </div>
-
-                            <p>
-                            <b>Predicted Sentiment:</b>
-                            Positive
-                            </p>
-
-                            {
-                                f"<p><b>Confidence:</b> {confidence:.1f}%</p>"
-                                if confidence is not None else ""
-                            }
-
-                            <div class="review-box">
-                            "{review}"
-                            </div>
-
+                        <div class="result-title">
+                        😊 Positive Sentiment
                         </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+
+                        <p>
+                        <b>Predicted Sentiment:</b>
+                        Positive
+                        </p>
+
+                        {
+                            f"<p><b>Confidence:</b> {confidence:.1f}%</p>"
+                            if confidence is not None
+                            else ""
+                        }
+
+                        <div class="review-box">
+                        "{safe_review}"
+                        </div>
+
+                    </div>
+                    """)
 
 
                 elif sentiment == "Negative":
 
-                    st.markdown(
-                        f"""
-                        <div class="result-card result-negative">
+                    render_html(f"""
+                    <div class="result-card result-negative">
 
-                            <div class="result-title">
-                            😞 Negative Sentiment
-                            </div>
-
-                            <p>
-                            <b>Predicted Sentiment:</b>
-                            Negative
-                            </p>
-
-                            {
-                                f"<p><b>Confidence:</b> {confidence:.1f}%</p>"
-                                if confidence is not None else ""
-                            }
-
-                            <div class="review-box">
-                            "{review}"
-                            </div>
-
+                        <div class="result-title">
+                        😞 Negative Sentiment
                         </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+
+                        <p>
+                        <b>Predicted Sentiment:</b>
+                        Negative
+                        </p>
+
+                        {
+                            f"<p><b>Confidence:</b> {confidence:.1f}%</p>"
+                            if confidence is not None
+                            else ""
+                        }
+
+                        <div class="review-box">
+                        "{safe_review}"
+                        </div>
+
+                    </div>
+                    """)
 
 
                 else:
 
-                    st.markdown(
-                        f"""
-                        <div class="result-card result-neutral">
+                    render_html(f"""
+                    <div class="result-card result-neutral">
 
-                            <div class="result-title">
-                            😐 Neutral Sentiment
-                            </div>
-
-                            <p>
-                            <b>Predicted Sentiment:</b>
-                            Neutral
-                            </p>
-
-                            {
-                                f"<p><b>Confidence:</b> {confidence:.1f}%</p>"
-                                if confidence is not None else ""
-                            }
-
-                            <div class="review-box">
-                            "{review}"
-                            </div>
-
+                        <div class="result-title">
+                        😐 Neutral Sentiment
                         </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+
+                        <p>
+                        <b>Predicted Sentiment:</b>
+                        Neutral
+                        </p>
+
+                        {
+                            f"<p><b>Confidence:</b> {confidence:.1f}%</p>"
+                            if confidence is not None
+                            else ""
+                        }
+
+                        <div class="review-box">
+                        "{safe_review}"
+                        </div>
+
+                    </div>
+                    """)
 
 
-    # PIE CHART
-    with right:
+    # PIE
+    with right_col:
 
-        st.markdown(
-            """
-            <div class="section-title">
-            📊 Customer Review Sentiment Distribution
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        render_html("""
+        <div class="section-title">
+        📊 Customer Review Sentiment Distribution
+        </div>
+        """)
 
 
         sentiment_counts = (
@@ -1065,13 +1152,13 @@ if page == "Home":
         )
 
 
-        pie = px.pie(
+        pie_fig = px.pie(
             values=sentiment_counts.values,
             names=sentiment_counts.index
         )
 
 
-        pie.update_traces(
+        pie_fig.update_traces(
             textinfo="percent",
             texttemplate="%{percent:.1%}",
             textposition="inside",
@@ -1083,7 +1170,7 @@ if page == "Home":
         )
 
 
-        pie.update_layout(
+        pie_fig.update_layout(
             height=430,
             margin=dict(
                 l=5,
@@ -1098,19 +1185,16 @@ if page == "Home":
 
 
         st.plotly_chart(
-            pie,
+            pie_fig,
             use_container_width=True
         )
 
 
     # -----------------------------------------------------
-    # RATING + DATASET INSIGHTS
+    # RATING + INSIGHTS
     # -----------------------------------------------------
 
-    st.markdown(
-        "<br>",
-        unsafe_allow_html=True
-    )
+    st.markdown("<br>", unsafe_allow_html=True)
 
 
     rating_col, insight_col = st.columns(
@@ -1121,14 +1205,11 @@ if page == "Home":
     # RATING
     with rating_col:
 
-        st.markdown(
-            """
-            <div class="section-title">
-            ⭐ Rating Distribution
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        render_html("""
+        <div class="section-title">
+        ⭐ Rating Distribution
+        </div>
+        """)
 
 
         rating_counts = (
@@ -1158,7 +1239,7 @@ if page == "Home":
 
 
         rating_fig.update_layout(
-            height=365,
+            height=350,
             margin=dict(
                 l=10,
                 r=10,
@@ -1181,143 +1262,125 @@ if page == "Home":
     # INSIGHTS
     with insight_col:
 
-        st.markdown(
-            """
-            <div class="section-title">
-            🗄️ Dataset Insights
+        render_html("""
+        <div class="section-title">
+        🗄️ Dataset Insights
+        </div>
+        """)
+
+
+        a, b = st.columns(2)
+
+
+        with a:
+
+            render_html(f"""
+            <div class="insight-card">
+
+                <div class="insight-icon">
+                📄
+                </div>
+
+                <div class="insight-title">
+                Total Reviews
+                </div>
+
+                <div class="insight-value">
+                {total_reviews:,}
+                </div>
+
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+            """)
 
 
-        i1, i2 = st.columns(2)
+        with b:
 
+            render_html(f"""
+            <div class="insight-card">
 
-        with i1:
-
-            st.markdown(
-                f"""
-                <div class="insight-card">
-
-                    <div class="insight-icon">
-                    📄
-                    </div>
-
-                    <div class="insight-title">
-                    Total Reviews
-                    </div>
-
-                    <div class="insight-value">
-                    {total_reviews:,}
-                    </div>
-
+                <div class="insight-icon">
+                ⭐
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
 
-
-        with i2:
-
-            st.markdown(
-                f"""
-                <div class="insight-card">
-
-                    <div class="insight-icon">
-                    ⭐
-                    </div>
-
-                    <div class="insight-title">
-                    Average Rating
-                    </div>
-
-                    <div class="insight-value">
-                    {average_rating:.2f}
-                    </div>
-
+                <div class="insight-title">
+                Average Rating
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+
+                <div class="insight-value">
+                {average_rating:.2f}
+                </div>
+
+            </div>
+            """)
 
 
         st.markdown("<br>", unsafe_allow_html=True)
 
 
-        i3, i4 = st.columns(2)
+        c, d = st.columns(2)
 
 
-        with i3:
+        with c:
 
-            st.markdown(
-                f"""
-                <div class="insight-card">
+            render_html(f"""
+            <div class="insight-card">
 
-                    <div class="insight-icon">
-                    📈
-                    </div>
-
-                    <div class="insight-title">
-                    Positive Ratio
-                    </div>
-
-                    <div class="insight-value">
-                    {positive_pct:.1f}%
-                    </div>
-
+                <div class="insight-icon">
+                📈
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
 
-
-        with i4:
-
-            st.markdown(
-                f"""
-                <div class="insight-card">
-
-                    <div class="insight-icon">
-                    📉
-                    </div>
-
-                    <div class="insight-title">
-                    Negative Ratio
-                    </div>
-
-                    <div class="insight-value">
-                    {negative_pct:.1f}%
-                    </div>
-
+                <div class="insight-title">
+                Positive Ratio
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+
+                <div class="insight-value">
+                {positive_pct:.1f}%
+                </div>
+
+            </div>
+            """)
+
+
+        with d:
+
+            render_html(f"""
+            <div class="insight-card">
+
+                <div class="insight-icon">
+                📉
+                </div>
+
+                <div class="insight-title">
+                Negative Ratio
+                </div>
+
+                <div class="insight-value">
+                {negative_pct:.1f}%
+                </div>
+
+            </div>
+            """)
 
 
     # -----------------------------------------------------
     # GOAL
     # -----------------------------------------------------
 
-    st.markdown(
-        """
-        <div class="goal-banner">
+    render_html("""
+    <div class="goal-banner">
 
-            <div class="goal-title">
-            🎯 Our Goal
-            </div>
-
-            <div class="goal-text">
-            Help businesses understand customer opinions,
-            identify areas for improvement, and build better
-            products through data-driven insights.
-            </div>
-
+        <div class="goal-title">
+        🎯 Our Goal
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+
+        <div class="goal-text">
+        Help businesses understand customer opinions,
+        identify areas for improvement, and build better
+        products through data-driven insights.
+        </div>
+
+    </div>
+    """)
 
 
 # =========================================================
@@ -1326,23 +1389,19 @@ if page == "Home":
 
 elif page == "Single Review":
 
-    st.markdown(
-        """
-        <div class="page-title">
-        💬 Single Review Analysis
-        </div>
+    render_html("""
+    <div class="page-title">
+    💬 Single Review Analysis
+    </div>
 
-        <div class="page-subtitle">
-        Analyze an individual customer review using our NLP model.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    <div class="page-subtitle">
+    Understand how customers feel about a product using NLP.
+    </div>
+    """)
 
 
-    st.markdown(
-        """
-        <div class="card">
+    render_html("""
+    <div class="review-card">
 
         <div class="section-title">
         🔍 Enter Customer Review
@@ -1350,25 +1409,24 @@ elif page == "Single Review":
 
         <div class="section-subtitle">
         The trained machine learning model will classify
-        the review as Positive, Neutral or Negative.
+        your review as Positive, Neutral or Negative.
         </div>
 
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    </div>
+    """)
 
 
     review = st.text_area(
-        "Customer Review",
+        "customer_review",
         placeholder=
         "Example: I am very happy with this product. The quality is excellent!",
-        height=200
+        height=190
     )
 
 
     if st.button(
         "🔍  Predict Sentiment",
+        key="single_predict",
         use_container_width=True
     ):
 
@@ -1380,7 +1438,7 @@ elif page == "Single Review":
 
         else:
 
-            sentiment, confidence = (
+            sentiment, confidence, probabilities = (
                 predict_sentiment(review)
             )
 
@@ -1388,19 +1446,19 @@ elif page == "Single Review":
             if sentiment == "Positive":
 
                 st.success(
-                    f"😊 Positive Sentiment"
+                    "😊 Positive Sentiment"
                 )
 
             elif sentiment == "Negative":
 
                 st.error(
-                    f"😞 Negative Sentiment"
+                    "😞 Negative Sentiment"
                 )
 
             else:
 
                 st.warning(
-                    f"😐 Neutral Sentiment"
+                    "😐 Neutral Sentiment"
                 )
 
 
@@ -1418,33 +1476,63 @@ elif page == "Single Review":
                 )
 
 
+            if probabilities is not None:
+
+                probability_df = pd.DataFrame({
+                    "Sentiment": model.classes_,
+                    "Probability": probabilities
+                })
+
+                probability_df["Probability"] *= 100
+
+                fig = px.bar(
+                    probability_df,
+                    x="Sentiment",
+                    y="Probability",
+                    text="Probability"
+                )
+
+                fig.update_traces(
+                    texttemplate="%{text:.1f}%",
+                    textposition="outside"
+                )
+
+                fig.update_layout(
+                    yaxis_title="Probability (%)",
+                    xaxis_title="",
+                    height=330
+                )
+
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True
+                )
+
+
 # =========================================================
-# BATCH PREDICTION
+# BATCH PREDICTION PAGE
 # =========================================================
 
 elif page == "Batch Prediction":
 
-    st.markdown(
-        """
-        <div class="page-title">
-        📄 Batch Prediction
-        </div>
+    render_html("""
+    <div class="page-title">
+    📄 Batch Prediction
+    </div>
 
-        <div class="page-subtitle">
-        Analyze multiple customer reviews at the same time.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    <div class="page-subtitle">
+    Upload multiple customer reviews and analyze them together.
+    </div>
+    """)
 
 
     uploaded_file = st.file_uploader(
-        "Upload a CSV file",
+        "Upload CSV file",
         type=["csv"]
     )
 
 
-    if uploaded_file:
+    if uploaded_file is not None:
 
         batch_df = pd.read_csv(
             uploaded_file
@@ -1466,7 +1554,7 @@ elif page == "Batch Prediction":
 
             for review in batch_df["review"]:
 
-                sentiment, confidence = (
+                sentiment, confidence, _ = (
                     predict_sentiment(review)
                 )
 
@@ -1482,21 +1570,16 @@ elif page == "Batch Prediction":
             batch_df["sentiment"] = predictions
 
 
-            if any(
-                c is not None
+            batch_df["confidence"] = [
+                round(c, 2)
+                if c is not None
+                else None
                 for c in confidences
-            ):
-
-                batch_df["confidence"] = [
-                    round(c, 2)
-                    if c is not None
-                    else None
-                    for c in confidences
-                ]
+            ]
 
 
             st.success(
-                "✅ Prediction completed successfully!"
+                "✅ Predictions completed successfully!"
             )
 
 
@@ -1507,14 +1590,14 @@ elif page == "Batch Prediction":
             )
 
 
-            csv = batch_df.to_csv(
+            csv_data = batch_df.to_csv(
                 index=False
             )
 
 
             st.download_button(
                 "⬇️ Download Predictions",
-                csv,
+                csv_data,
                 "sentiment_predictions.csv",
                 "text/csv",
                 use_container_width=True
@@ -1522,25 +1605,23 @@ elif page == "Batch Prediction":
 
 
 # =========================================================
-# VISUALIZATIONS
+# VISUALIZATIONS PAGE
 # =========================================================
 
 elif page == "Visualizations":
 
-    st.markdown(
-        """
-        <div class="page-title">
-        📊 Visualizations
-        </div>
+    render_html("""
+    <div class="page-title">
+    📊 Visualizations
+    </div>
 
-        <div class="page-subtitle">
-        Explore customer sentiment and rating patterns.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    <div class="page-subtitle">
+    Explore customer sentiment and rating patterns.
+    </div>
+    """)
 
 
+    # SENTIMENT
     sentiment_counts = (
         df["sentiment"]
         .value_counts()
@@ -1573,6 +1654,7 @@ elif page == "Visualizations":
     )
 
 
+    # RATING
     rating_counts = (
         df["rating"]
         .value_counts()
@@ -1607,24 +1689,21 @@ elif page == "Visualizations":
 
 
 # =========================================================
-# MODEL PERFORMANCE
+# MODEL PERFORMANCE PAGE
 # =========================================================
 
 elif page == "Model Performance":
 
-    st.markdown(
-        """
-        <div class="page-title">
-        🏆 Model Performance
-        </div>
+    render_html("""
+    <div class="page-title">
+    🏆 Model Performance
+    </div>
 
-        <div class="page-subtitle">
-        Comparison of the machine learning models evaluated
-        for sentiment classification.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    <div class="page-subtitle">
+    Comparison of the machine learning models evaluated
+    for sentiment classification.
+    </div>
+    """)
 
 
     model_df = pd.DataFrame({
@@ -1633,21 +1712,25 @@ elif page == "Model Performance":
             "Multinomial Naive Bayes",
             "Linear SVM"
         ],
+
         "Accuracy": [
             80.21,
             71.88,
             80.90
         ],
+
         "Precision": [
             78.84,
             63.79,
             78.59
         ],
+
         "Recall": [
             80.21,
             71.88,
             80.90
         ],
+
         "F1 Score": [
             79.37,
             65.94,
@@ -1668,120 +1751,147 @@ elif page == "Model Performance":
     )
 
 
-    st.markdown(
-        """
-        <div class="goal-banner">
-
-            <div class="goal-title">
-            🏆 Selected Model: Logistic Regression
-            </div>
-
-            <div class="goal-text">
-
-            Logistic Regression was selected as the final model
-            because it achieved the highest F1 Score among the
-            evaluated models.
-
-            <br><br>
-
-            <b>F1 Score: 79.37%</b>
-
-            </div>
-
-        </div>
-        """,
-        unsafe_allow_html=True
+    # MODEL CHART
+    chart_df = model_df[
+        ["Model", "Accuracy", "F1 Score"]
+    ].melt(
+        id_vars="Model",
+        var_name="Metric",
+        value_name="Score"
     )
 
 
+    fig = px.bar(
+        chart_df,
+        x="Model",
+        y="Score",
+        color="Metric",
+        barmode="group",
+        text="Score"
+    )
+
+
+    fig.update_traces(
+        texttemplate="%{text:.2f}%",
+        textposition="outside"
+    )
+
+
+    fig.update_layout(
+        yaxis_title="Score (%)",
+        xaxis_title="",
+        height=430
+    )
+
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+
+    render_html("""
+    <div class="goal-banner">
+
+        <div class="goal-title">
+        🏆 Selected Model: Logistic Regression
+        </div>
+
+        <div class="goal-text">
+
+        Logistic Regression was selected as the final model
+        because it achieved the highest F1 Score among the
+        evaluated models.
+
+        <br><br>
+
+        <b>F1 Score: 79.37%</b>
+
+        </div>
+
+    </div>
+    """)
+
+
 # =========================================================
-# ABOUT
+# ABOUT PAGE
 # =========================================================
 
 elif page == "About":
 
-    st.markdown(
-        """
-        <div class="page-title">
-        ℹ️ About ReviewSense
+    render_html("""
+    <div class="page-title">
+    ℹ️ About ReviewSense
+    </div>
+
+    <div class="page-subtitle">
+    NLP-based Customer Review Sentiment Analysis
+    </div>
+    """)
+
+
+    # OVERVIEW
+    render_html("""
+    <div class="review-card">
+
+        <div class="section-title">
+        🎯 Project Overview
         </div>
 
-        <div class="page-subtitle">
-        NLP-based Customer Review Sentiment Analysis
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        <p style="
+        color:#5f6d89;
+        font-size:16px;
+        line-height:1.7;">
+
+        Customer Review Sentiment Analysis is an NLP and
+        Machine Learning project designed to analyze customer
+        feedback and identify the sentiment expressed in reviews.
+
+        </p>
+
+        <p style="font-size:18px;">
+
+        😊 <b>Positive</b>
+        &nbsp;&nbsp;&nbsp;
+        😐 <b>Neutral</b>
+        &nbsp;&nbsp;&nbsp;
+        😞 <b>Negative</b>
+
+        </p>
+
+    </div>
+    """)
 
 
-    # PROJECT OVERVIEW
-    st.markdown(
-        """
-        <div class="card">
-
-            <div class="section-title">
-            🎯 Project Overview
-            </div>
-
-            <p style="color:#5f6d89;font-size:16px;line-height:1.7;">
-
-            Customer Review Sentiment Analysis is an NLP and
-            Machine Learning project designed to analyze customer
-            feedback and identify the sentiment expressed in reviews.
-
-            </p>
-
-            <p style="font-size:18px;">
-
-            😊 <b>Positive</b>
-            &nbsp;&nbsp;&nbsp;
-            😐 <b>Neutral</b>
-            &nbsp;&nbsp;&nbsp;
-            😞 <b>Negative</b>
-
-            </p>
-
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-    st.markdown(
-        "<br>",
-        unsafe_allow_html=True
-    )
+    st.markdown("<br>", unsafe_allow_html=True)
 
 
     # DATASET
-    st.markdown(
-        """
-        <div class="section-title">
-        📊 Dataset Information
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    render_html("""
+    <div class="section-title">
+    📊 Dataset Information
+    </div>
+    """)
 
 
-    a, b, c = st.columns(3)
+    d1, d2, d3 = st.columns(3)
 
 
-    with a:
+    with d1:
         st.metric(
             "Total Reviews",
             f"{total_reviews:,}"
         )
 
 
-    with b:
+    with d2:
         st.metric(
             "Features",
             "3"
         )
 
 
-    with c:
+    with d3:
         st.metric(
             "Sentiment Classes",
             "3"
@@ -1800,8 +1910,10 @@ elif page == "About":
 
         ### Sentiment Mapping
 
-        ⭐ **1–2 → Negative**  
-        ⭐ **3 → Neutral**  
+        ⭐ **1–2 → Negative**
+
+        ⭐ **3 → Neutral**
+
         ⭐ **4–5 → Positive**
         """
     )
@@ -1811,23 +1923,20 @@ elif page == "About":
 
 
     # WORKFLOW
-    st.markdown(
-        """
-        <div class="section-title">
-        🔄 NLP & Machine Learning Workflow
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    render_html("""
+    <div class="section-title">
+    🔄 NLP & Machine Learning Workflow
+    </div>
+    """)
 
 
     workflow = [
         ("📥", "Data Collection"),
         ("🧹", "Data Preprocessing"),
         ("⚙️", "Feature Engineering"),
-        ("🔤", "TF-IDF"),
+        ("🔤", "TF-IDF Vectorization"),
         ("🤖", "Model Training"),
-        ("📈", "Evaluation"),
+        ("📈", "Model Evaluation"),
         ("🔮", "Prediction"),
         ("🌐", "Deployment")
     ]
@@ -1842,40 +1951,34 @@ elif page == "About":
 
         with workflow_cols[i % 4]:
 
-            st.markdown(
-                f"""
-                <div class="insight-card"
-                     style="margin-bottom:15px;">
+            render_html(f"""
+            <div class="insight-card"
+                 style="margin-bottom:15px;">
 
-                    <div class="insight-icon">
-                    {icon}
-                    </div>
-
-                    <div class="insight-title">
-                    {title}
-                    </div>
-
+                <div class="insight-icon">
+                {icon}
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+
+                <div class="insight-title">
+                {title}
+                </div>
+
+            </div>
+            """)
 
 
     st.divider()
 
 
     # TECHNOLOGIES
-    st.markdown(
-        """
-        <div class="section-title">
-        🛠️ Technologies Used
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    render_html("""
+    <div class="section-title">
+    🛠️ Technologies Used
+    </div>
+    """)
 
 
-    techs = [
+    technologies = [
         ("🐍", "Python"),
         ("🧠", "NLP"),
         ("🤖", "Scikit-learn"),
@@ -1887,30 +1990,27 @@ elif page == "About":
     tech_cols = st.columns(5)
 
 
-    for col, (icon, name) in zip(
+    for col, (icon, title) in zip(
         tech_cols,
-        techs
+        technologies
     ):
 
         with col:
 
-            st.markdown(
-                f"""
-                <div class="insight-card"
-                     style="text-align:center;">
+            render_html(f"""
+            <div class="insight-card"
+                 style="text-align:center;">
 
-                    <div style="font-size:35px;">
-                    {icon}
-                    </div>
-
-                    <div class="insight-title">
-                    {name}
-                    </div>
-
+                <div style="font-size:35px;">
+                {icon}
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
+
+                <div class="insight-title">
+                {title}
+                </div>
+
+            </div>
+            """)
 
 
     st.markdown(
@@ -1923,57 +2023,82 @@ elif page == "About":
     )
 
 
+    st.divider()
+
+
     # BUSINESS OBJECTIVE
-    st.markdown(
-        """
-        <div class="goal-banner">
+    render_html("""
+    <div class="goal-banner">
 
-            <div class="goal-title">
-            💡 Business Objective
-            </div>
+        <div class="goal-title">
+        💡 Business Objective
+        </div>
 
-            <div class="goal-text">
+        <div class="goal-text">
 
-            Transform unstructured customer feedback into
-            meaningful insights.
+        Transform unstructured customer feedback into
+        meaningful sentiment insights.
 
-            <br><br>
+        <br><br>
 
-            ✅ Understand customer satisfaction<br>
-            ✅ Identify negative customer experiences<br>
-            ✅ Monitor customer feedback<br>
-            ✅ Improve products and services<br>
-            ✅ Support data-driven decisions
-
-            </div>
+        ✅ Understand customer satisfaction<br>
+        ✅ Identify negative customer experiences<br>
+        ✅ Monitor customer feedback<br>
+        ✅ Improve products and services<br>
+        ✅ Support data-driven decisions
 
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+
+    </div>
+    """)
+
+
+    # FINAL
+    render_html("""
+    <div style="
+        text-align:center;
+        padding:35px 10px 10px 10px;
+        color:#65718e;">
+
+        <div style="
+            font-size:25px;
+            font-weight:850;
+            color:#172b61;">
+
+            🛒 ReviewSense
+
+        </div>
+
+        <p>
+        NLP • Machine Learning • Data Science • Streamlit
+        </p>
+
+        <i>
+        “Turning Customer Feedback into Valuable Insights”
+        </i>
+
+    </div>
+    """)
 
 
 # =========================================================
 # FOOTER
 # =========================================================
 
-st.markdown(
-    """
-    <div class="footer">
+render_html("""
+<div class="footer">
 
-    ❤️ ReviewSense | Customer Review Sentiment Analysis
+❤️ ReviewSense | Customer Review Sentiment Analysis
 
-    <br>
+<br>
 
-    NLP • Machine Learning • Data Science • Streamlit
+NLP • Machine Learning • Data Science • Streamlit
 
-    <br>
+<br>
 
-    <i>
-    “Turning Customer Feedback into Valuable Insights”
-    </i>
+<i>
+Turning Customer Feedback into Valuable Insights
+</i>
 
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+</div>
+""")
