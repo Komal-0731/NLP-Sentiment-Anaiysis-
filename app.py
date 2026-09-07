@@ -5,41 +5,249 @@ import re
 import plotly.express as px
 
 
-# =========================================================
-# PAGE SETTINGS
-# =========================================================
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
 
 st.set_page_config(
-    page_title="Customer Review Sentiment Analysis",
+    page_title="ReviewSense | Sentiment Analysis",
     page_icon="🛒",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 
-# =========================================================
-# TITLE
-# =========================================================
+# ============================================================
+# CUSTOM CSS
+# ============================================================
 
-st.title("🛒 Customer Review Sentiment Analysis")
+st.markdown("""
+<style>
 
-st.write(
-    "Analyze customer reviews and understand what "
-    "customers feel about products."
-)
+# ============================================================
+# MAIN BACKGROUND
+# ============================================================
+.stApp {
+    background:
+        radial-gradient(circle at 85% 5%, #f0eaff 0%, transparent 25%),
+        radial-gradient(circle at 10% 90%, #e8edff 0%, transparent 30%),
+        linear-gradient(135deg, #f7f9ff, #faf8ff);
+}
 
-st.divider()
+.block-container {
+    max-width: 1450px;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+}
 
 
-# =========================================================
-# LOAD DATASET
-# =========================================================
+# ============================================================
+# SIDEBAR
+# ============================================================
+section[data-testid="stSidebar"] {
+    background: linear-gradient(
+        180deg,
+        #edf3ff 0%,
+        #f1efff 55%,
+        #f8f2ff 100%
+    );
+
+    border-right: 1px solid #dce3f5;
+}
+
+section[data-testid="stSidebar"] h1 {
+    color: #172b61;
+    font-size: 27px;
+    font-weight: 800;
+}
+
+section[data-testid="stSidebar"] p {
+    color: #63708e;
+}
+
+
+# ============================================================
+# HEADINGS
+# ============================================================
+h1 {
+    font-size: 45px !important;
+    font-weight: 850 !important;
+
+    background: linear-gradient(
+        90deg,
+        #173d91,
+        #345bd9,
+        #7025d5
+    );
+
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+h2 {
+    color: #172b61 !important;
+    font-weight: 800 !important;
+}
+
+h3 {
+    color: #1c3470 !important;
+    font-weight: 750 !important;
+}
+
+
+# ============================================================
+# NORMAL TEXT
+# ============================================================
+p {
+    color: #5d6b89;
+}
+
+
+# ============================================================
+# METRIC CARDS
+# ============================================================
+div[data-testid="stMetric"] {
+    background: rgba(255,255,255,0.88);
+    border: 1px solid #e1e6f4;
+    border-radius: 20px;
+    padding: 20px;
+
+    box-shadow:
+        0 8px 25px rgba(45,65,120,0.08);
+
+    min-height: 120px;
+}
+
+div[data-testid="stMetric"] label {
+    color: #5d6a87 !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stMetricValue"] {
+    color: #172b61 !important;
+    font-weight: 850 !important;
+}
+
+
+# ============================================================
+# TEXT AREA
+# ============================================================
+.stTextArea textarea {
+    background: #ffffff !important;
+    border: 1px solid #d4dced !important;
+    border-radius: 14px !important;
+    color: #27375f !important;
+    font-size: 15px !important;
+    padding: 15px !important;
+}
+
+.stTextArea textarea:focus {
+    border-color: #7166ee !important;
+    box-shadow: 0 0 0 1px #7166ee !important;
+}
+
+
+# ============================================================
+# BUTTON
+# ============================================================
+.stButton > button {
+    background: linear-gradient(
+        90deg,
+        #625cf5,
+        #7952e8
+    );
+
+    color: white;
+
+    border: none;
+    border-radius: 12px;
+
+    min-height: 48px;
+
+    font-size: 16px;
+    font-weight: 700;
+
+    box-shadow:
+        0 7px 18px rgba(91,82,220,0.25);
+
+    transition: 0.2s;
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+
+    background: linear-gradient(
+        90deg,
+        #554ee0,
+        #6942d3
+    );
+
+    color: white;
+}
+
+
+# ============================================================
+# FILE UPLOADER
+# ============================================================
+[data-testid="stFileUploader"] {
+    background: white;
+    border-radius: 15px;
+    padding: 10px;
+}
+
+
+# ============================================================
+# DATAFRAME
+# ============================================================
+[data-testid="stDataFrame"] {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+
+# ============================================================
+# DIVIDER
+# ============================================================
+hr {
+    border: none;
+    border-top: 1px solid #dfe4f2;
+    margin: 25px 0;
+}
+
+
+# ============================================================
+# SUCCESS / ERROR / WARNING
+# ============================================================
+div[data-testid="stAlert"] {
+    border-radius: 14px;
+}
+
+
+# ============================================================
+# FOOTER
+# ============================================================
+.footer-text {
+    text-align: center;
+    color: #73809b;
+    font-size: 14px;
+    padding: 20px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# LOAD DATA
+# ============================================================
 
 @st.cache_data
 def load_data():
 
     df = pd.read_excel("P652-Dataset.xlsx")
 
-    def get_sentiment(rating):
+    def convert_rating(rating):
 
         if rating <= 2:
             return "Negative"
@@ -50,7 +258,7 @@ def load_data():
         else:
             return "Positive"
 
-    df["sentiment"] = df["rating"].apply(get_sentiment)
+    df["sentiment"] = df["rating"].apply(convert_rating)
 
     return df
 
@@ -58,19 +266,19 @@ def load_data():
 df = load_data()
 
 
-# =========================================================
+# ============================================================
 # LOAD MODEL
-# =========================================================
+# ============================================================
 
 @st.cache_resource
 def load_model():
 
-    model_package = joblib.load(
+    package = joblib.load(
         "sentiment_model.joblib"
     )
 
-    tfidf = model_package["tfidf"]
-    model = model_package["model"]
+    tfidf = package["tfidf"]
+    model = package["model"]
 
     return tfidf, model
 
@@ -78,9 +286,9 @@ def load_model():
 tfidf, model = load_model()
 
 
-# =========================================================
+# ============================================================
 # TEXT CLEANING
-# =========================================================
+# ============================================================
 
 def clean_text(text):
 
@@ -113,9 +321,9 @@ def clean_text(text):
     return text
 
 
-# =========================================================
-# PREDICTION
-# =========================================================
+# ============================================================
+# SENTIMENT PREDICTION
+# ============================================================
 
 def predict_sentiment(review):
 
@@ -132,9 +340,9 @@ def predict_sentiment(review):
     return prediction
 
 
-# =========================================================
+# ============================================================
 # DATASET STATISTICS
-# =========================================================
+# ============================================================
 
 total_reviews = len(df)
 
@@ -152,7 +360,6 @@ negative_count = (
 
 average_rating = df["rating"].mean()
 
-
 positive_percent = (
     positive_count / total_reviews * 100
 )
@@ -166,14 +373,14 @@ negative_percent = (
 )
 
 
-# =========================================================
+# ============================================================
 # SIDEBAR
-# =========================================================
+# ============================================================
 
 st.sidebar.title("🛒 ReviewSense")
 
-st.sidebar.write(
-    "Customer Review Sentiment Analysis"
+st.sidebar.caption(
+    "Understand • Improve • Grow"
 )
 
 st.sidebar.divider()
@@ -185,98 +392,135 @@ page = st.sidebar.radio(
         "💬 Single Review",
         "📄 Batch Prediction",
         "📊 Visualizations",
+        "🏆 Model Performance",
         "ℹ️ About"
     ]
 )
 
+st.sidebar.divider()
 
-# =========================================================
-# HOME
-# =========================================================
+st.sidebar.info(
+    "💡 Turning customer feedback "
+    "into valuable insights."
+)
+
+st.sidebar.markdown("---")
+
+st.sidebar.caption(
+    "❤️ Built with Streamlit"
+)
+
+
+# ============================================================
+# HOME PAGE
+# ============================================================
 
 if page == "🏠 Home":
 
-    st.header("📊 Dashboard")
+    # --------------------------------------------------------
+    # HERO TITLE
+    # --------------------------------------------------------
 
-    st.write(
-        "Overview of customer reviews in the dataset."
+    st.title(
+        "🛒 Customer Review Sentiment Analysis"
     )
 
+    st.write(
+        "Turn customer feedback into meaningful insights "
+        "with the power of NLP and Machine Learning."
+    )
 
-    # -----------------------------------------------------
+    st.markdown("<br>", unsafe_allow_html=True)
+
+
+    # --------------------------------------------------------
     # METRICS
-    # -----------------------------------------------------
+    # --------------------------------------------------------
 
     col1, col2, col3, col4 = st.columns(4)
-
 
     with col1:
 
         st.metric(
-            "Total Reviews",
+            "📄 Total Reviews",
             f"{total_reviews:,}"
         )
-
 
     with col2:
 
         st.metric(
-            "😊 Positive",
-            f"{positive_count:,}"
+            "😊 Positive Reviews",
+            f"{positive_count:,}",
+            f"{positive_percent:.1f}% of total"
         )
-
 
     with col3:
 
         st.metric(
-            "😐 Neutral",
-            f"{neutral_count:,}"
+            "😐 Neutral Reviews",
+            f"{neutral_count:,}",
+            f"{neutral_percent:.1f}% of total"
         )
-
 
     with col4:
 
         st.metric(
-            "😞 Negative",
-            f"{negative_count:,}"
+            "😞 Negative Reviews",
+            f"{negative_count:,}",
+            f"{negative_percent:.1f}% of total"
         )
 
 
-    st.divider()
+    st.markdown("<br>", unsafe_allow_html=True)
 
 
-    # -----------------------------------------------------
-    # SINGLE REVIEW
-    # -----------------------------------------------------
+    # --------------------------------------------------------
+    # ANALYSIS + SENTIMENT CHART
+    # --------------------------------------------------------
 
-    left, right = st.columns(
-        [1, 1]
+    left_col, right_col = st.columns(
+        [1.05, 0.95]
     )
 
 
-    with left:
+    # ========================================================
+    # LEFT - REVIEW ANALYSIS
+    # ========================================================
+
+    with left_col:
 
         st.subheader(
             "💬 Analyze a Single Review"
         )
 
-        review = st.text_area(
-            "Enter customer review",
-            placeholder=
-            "Example: The product quality is excellent and I really love it!",
-            height=150
+        st.write(
+            "Enter a customer review below and let "
+            "the machine learning model predict its sentiment."
         )
 
+        review = st.text_area(
+            "Customer Review",
+            placeholder=(
+                "Example: The product quality is excellent "
+                "and I really love it!"
+            ),
+            height=150,
+            label_visibility="collapsed"
+        )
+
+        st.caption(
+            f"{len(review)}/1000 characters"
+        )
 
         if st.button(
-            "🔍 Analyze Sentiment",
+            "🔍  Analyze Sentiment",
             use_container_width=True
         ):
 
-            if review.strip() == "":
+            if not review.strip():
 
                 st.warning(
-                    "Please enter a review."
+                    "Please enter a customer review."
                 )
 
             else:
@@ -285,11 +529,16 @@ if page == "🏠 Home":
                     review
                 )
 
+                st.markdown("---")
 
                 if sentiment == "Positive":
 
                     st.success(
                         "😊 Positive Sentiment"
+                    )
+
+                    st.write(
+                        "The review expresses a positive opinion."
                     )
 
                 elif sentiment == "Negative":
@@ -298,23 +547,30 @@ if page == "🏠 Home":
                         "😞 Negative Sentiment"
                     )
 
+                    st.write(
+                        "The review expresses a negative opinion."
+                    )
+
                 else:
 
                     st.warning(
                         "😐 Neutral Sentiment"
                     )
 
+                    st.write(
+                        "The review expresses a relatively neutral opinion."
+                    )
 
-    # -----------------------------------------------------
-    # PIE CHART
-    # -----------------------------------------------------
 
-    with right:
+    # ========================================================
+    # RIGHT - SENTIMENT DISTRIBUTION
+    # ========================================================
+
+    with right_col:
 
         st.subheader(
-            "📊 Sentiment Distribution"
+            "📊 Customer Sentiment Distribution"
         )
-
 
         sentiment_counts = (
             df["sentiment"]
@@ -328,33 +584,32 @@ if page == "🏠 Home":
             )
         )
 
-
-        fig = px.pie(
+        pie_fig = px.pie(
             values=sentiment_counts.values,
             names=sentiment_counts.index,
-            hole=0.25
+            hole=0.45
         )
 
-
-        fig.update_traces(
+        pie_fig.update_traces(
             textinfo="percent",
-            texttemplate="%{percent:.1%}"
+            texttemplate="%{percent:.1%}",
+            textposition="inside"
         )
 
-
-        fig.update_layout(
-            height=400,
+        pie_fig.update_layout(
+            height=410,
             margin=dict(
-                l=10,
-                r=10,
-                t=10,
-                b=10
-            )
+                l=5,
+                r=5,
+                t=5,
+                b=5
+            ),
+            legend_title="Sentiment",
+            paper_bgcolor="rgba(0,0,0,0)"
         )
-
 
         st.plotly_chart(
-            fig,
+            pie_fig,
             use_container_width=True
         )
 
@@ -362,14 +617,13 @@ if page == "🏠 Home":
     st.divider()
 
 
-    # -----------------------------------------------------
+    # ========================================================
     # RATING DISTRIBUTION
-    # -----------------------------------------------------
+    # ========================================================
 
     st.subheader(
         "⭐ Rating Distribution"
     )
-
 
     rating_counts = (
         df["rating"]
@@ -377,30 +631,28 @@ if page == "🏠 Home":
         .sort_index()
     )
 
-
     rating_df = pd.DataFrame({
         "Rating": rating_counts.index,
-        "Reviews": rating_counts.values
+        "Number of Reviews": rating_counts.values
     })
-
 
     rating_fig = px.bar(
         rating_df,
         x="Rating",
-        y="Reviews",
-        text="Reviews"
+        y="Number of Reviews",
+        text="Number of Reviews"
     )
-
 
     rating_fig.update_traces(
         textposition="outside"
     )
 
-
     rating_fig.update_layout(
-        height=400
+        height=390,
+        xaxis_title="Rating",
+        yaxis_title="Number of Reviews",
+        paper_bgcolor="rgba(0,0,0,0)"
     )
-
 
     st.plotly_chart(
         rating_fig,
@@ -408,49 +660,62 @@ if page == "🏠 Home":
     )
 
 
-    # -----------------------------------------------------
-    # SUMMARY
-    # -----------------------------------------------------
+    # ========================================================
+    # DATASET INSIGHTS
+    # ========================================================
 
     st.subheader(
-        "📌 Dataset Summary"
+        "📌 Dataset Insights"
     )
 
+    i1, i2, i3 = st.columns(3)
 
-    c1, c2, c3 = st.columns(3)
-
-
-    with c1:
+    with i1:
 
         st.metric(
-            "Average Rating",
+            "⭐ Average Rating",
             f"{average_rating:.2f}"
         )
 
-
-    with c2:
+    with i2:
 
         st.metric(
-            "Positive Ratio",
+            "📈 Positive Ratio",
             f"{positive_percent:.1f}%"
         )
 
-
-    with c3:
+    with i3:
 
         st.metric(
-            "Negative Ratio",
+            "📉 Negative Ratio",
             f"{negative_percent:.1f}%"
         )
 
 
-# =========================================================
-# SINGLE REVIEW
-# =========================================================
+    # ========================================================
+    # GOAL
+    # ========================================================
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    st.subheader(
+        "🎯 Our Goal"
+    )
+
+    st.info(
+        "Help businesses understand customer opinions, "
+        "identify areas for improvement, and build better "
+        "products through data-driven insights."
+    )
+
+
+# ============================================================
+# SINGLE REVIEW PAGE
+# ============================================================
 
 elif page == "💬 Single Review":
 
-    st.header(
+    st.title(
         "💬 Single Review Analysis"
     )
 
@@ -458,21 +723,21 @@ elif page == "💬 Single Review":
         "Enter a customer review and predict its sentiment."
     )
 
-
     review = st.text_area(
         "Customer Review",
-        placeholder=
-        "Example: I am very happy with this product!",
-        height=200
+        placeholder=(
+            "Example: I am extremely happy with this "
+            "product. The quality is excellent!"
+        ),
+        height=220
     )
-
 
     if st.button(
         "🔍 Predict Sentiment",
         use_container_width=True
     ):
 
-        if review.strip() == "":
+        if not review.strip():
 
             st.warning(
                 "Please enter a review."
@@ -483,7 +748,6 @@ elif page == "💬 Single Review":
             sentiment = predict_sentiment(
                 review
             )
-
 
             if sentiment == "Positive":
 
@@ -504,26 +768,29 @@ elif page == "💬 Single Review":
                 )
 
 
-# =========================================================
+# ============================================================
 # BATCH PREDICTION
-# =========================================================
+# ============================================================
 
 elif page == "📄 Batch Prediction":
 
-    st.header(
+    st.title(
         "📄 Batch Prediction"
     )
 
     st.write(
-        "Upload a CSV file containing customer reviews."
+        "Upload multiple customer reviews in CSV format."
     )
 
+    st.info(
+        "Your CSV file must contain a column named "
+        "`review`."
+    )
 
     uploaded_file = st.file_uploader(
-        "Upload CSV file",
+        "Upload CSV",
         type=["csv"]
     )
-
 
     if uploaded_file is not None:
 
@@ -531,90 +798,113 @@ elif page == "📄 Batch Prediction":
             uploaded_file
         )
 
+        st.subheader(
+            "📋 Uploaded Data"
+        )
+
+        st.dataframe(
+            batch_df,
+            use_container_width=True,
+            hide_index=True
+        )
 
         if "review" not in batch_df.columns:
 
             st.error(
-                "Your CSV must contain a column named 'review'."
+                "❌ Column 'review' was not found."
             )
 
         else:
 
-            predictions = []
+            if st.button(
+                "🚀 Predict All Reviews",
+                use_container_width=True
+            ):
 
+                predictions = []
 
-            for review in batch_df["review"]:
+                for review in batch_df["review"]:
 
-                prediction = predict_sentiment(
-                    review
+                    predictions.append(
+                        predict_sentiment(review)
+                    )
+
+                batch_df["sentiment"] = predictions
+
+                st.success(
+                    "✅ Prediction completed!"
                 )
 
-                predictions.append(
-                    prediction
+                st.dataframe(
+                    batch_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                csv_data = batch_df.to_csv(
+                    index=False
+                )
+
+                st.download_button(
+                    "⬇️ Download Predictions",
+                    csv_data,
+                    "sentiment_predictions.csv",
+                    "text/csv",
+                    use_container_width=True
                 )
 
 
-            batch_df["sentiment"] = predictions
-
-
-            st.success(
-                "✅ Prediction completed!"
-            )
-
-
-            st.dataframe(
-                batch_df,
-                use_container_width=True
-            )
-
-
-            csv = batch_df.to_csv(
-                index=False
-            )
-
-
-            st.download_button(
-                label="⬇️ Download Predictions",
-                data=csv,
-                file_name="sentiment_predictions.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-
-
-# =========================================================
-# VISUALIZATIONS
-# =========================================================
+# ============================================================
+# VISUALIZATIONS PAGE
+# ============================================================
 
 elif page == "📊 Visualizations":
 
-    st.header(
+    st.title(
         "📊 Data Visualizations"
     )
 
+    st.write(
+        "Explore the sentiment and rating patterns "
+        "in the customer review dataset."
+    )
 
-    # -----------------------------------------------------
-    # SENTIMENT PIE
-    # -----------------------------------------------------
+
+    # --------------------------------------------------------
+    # SENTIMENT
+    # --------------------------------------------------------
+
+    st.subheader(
+        "😊 Sentiment Distribution"
+    )
 
     sentiment_counts = (
         df["sentiment"]
         .value_counts()
+        .reindex(
+            [
+                "Positive",
+                "Negative",
+                "Neutral"
+            ]
+        )
     )
-
 
     fig1 = px.pie(
         values=sentiment_counts.values,
         names=sentiment_counts.index,
-        title="Customer Sentiment Distribution"
+        hole=0.4
     )
-
 
     fig1.update_traces(
         textinfo="percent",
         texttemplate="%{percent:.1%}"
     )
 
+    fig1.update_layout(
+        height=500,
+        paper_bgcolor="rgba(0,0,0,0)"
+    )
 
     st.plotly_chart(
         fig1,
@@ -622,9 +912,13 @@ elif page == "📊 Visualizations":
     )
 
 
-    # -----------------------------------------------------
-    # RATING BAR
-    # -----------------------------------------------------
+    # --------------------------------------------------------
+    # RATING
+    # --------------------------------------------------------
+
+    st.subheader(
+        "⭐ Rating Distribution"
+    )
 
     rating_counts = (
         df["rating"]
@@ -632,26 +926,26 @@ elif page == "📊 Visualizations":
         .sort_index()
     )
 
-
     rating_df = pd.DataFrame({
         "Rating": rating_counts.index,
         "Reviews": rating_counts.values
     })
 
-
     fig2 = px.bar(
         rating_df,
         x="Rating",
         y="Reviews",
-        text="Reviews",
-        title="Rating Distribution"
+        text="Reviews"
     )
-
 
     fig2.update_traces(
         textposition="outside"
     )
 
+    fig2.update_layout(
+        height=500,
+        paper_bgcolor="rgba(0,0,0,0)"
+    )
 
     st.plotly_chart(
         fig2,
@@ -659,26 +953,133 @@ elif page == "📊 Visualizations":
     )
 
 
-# =========================================================
-# ABOUT
-# =========================================================
+# ============================================================
+# MODEL PERFORMANCE
+# ============================================================
 
-elif page == "ℹ️ About":
+elif page == "🏆 Model Performance":
 
-    st.header(
-        "ℹ️ About the Project"
+    st.title(
+        "🏆 Model Performance"
+    )
+
+    st.write(
+        "Comparison of the machine learning models "
+        "evaluated for sentiment classification."
     )
 
 
+    model_results = pd.DataFrame({
+
+        "Model": [
+            "Logistic Regression",
+            "Multinomial Naive Bayes",
+            "Linear SVM"
+        ],
+
+        "Accuracy": [
+            80.21,
+            71.88,
+            80.90
+        ],
+
+        "Precision": [
+            78.84,
+            63.79,
+            78.59
+        ],
+
+        "Recall": [
+            80.21,
+            71.88,
+            80.90
+        ],
+
+        "F1 Score": [
+            79.37,
+            65.94,
+            79.06
+        ]
+    })
+
+
+    st.dataframe(
+        model_results,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+    chart_data = model_results.melt(
+        id_vars="Model",
+        var_name="Metric",
+        value_name="Score"
+    )
+
+
+    performance_fig = px.bar(
+        chart_data,
+        x="Model",
+        y="Score",
+        color="Metric",
+        barmode="group",
+        text="Score"
+    )
+
+
+    performance_fig.update_traces(
+        texttemplate="%{text:.1f}%",
+        textposition="outside"
+    )
+
+
+    performance_fig.update_layout(
+        height=500,
+        yaxis_title="Score (%)",
+        paper_bgcolor="rgba(0,0,0,0)"
+    )
+
+
+    st.plotly_chart(
+        performance_fig,
+        use_container_width=True
+    )
+
+
+    st.success(
+        "🏆 Final Selected Model: Logistic Regression "
+        "with an F1 Score of 79.37%."
+    )
+
+
+# ============================================================
+# ABOUT PAGE
+# ============================================================
+
+elif page == "ℹ️ About":
+
+    st.title(
+        "ℹ️ About ReviewSense"
+    )
+
+    st.write(
+        "NLP-Based Customer Review Sentiment Analysis"
+    )
+
+    st.divider()
+
+
+    st.subheader(
+        "🎯 Project Objective"
+    )
+
     st.write(
         """
-        ### 🛒 Customer Review Sentiment Analysis
+        The objective of this project is to analyze customer
+        reviews using Natural Language Processing and Machine
+        Learning.
 
-        This project uses **Natural Language Processing (NLP)**
-        and **Machine Learning** to analyze customer reviews.
-
-        The application classifies reviews into three sentiment
-        categories:
+        The system identifies whether a customer review is:
 
         😊 Positive
 
@@ -696,15 +1097,17 @@ elif page == "ℹ️ About":
         "📊 Dataset"
     )
 
-
     st.write(
-        """
-        The dataset contains customer review information
-        including:
+        f"""
+        The dataset contains **{total_reviews:,} customer reviews**.
 
-        - Review title
-        - Rating
-        - Review body
+        The main columns are:
+
+        • **Title** – Review title
+
+        • **Rating** – Customer rating from 1 to 5
+
+        • **Body** – Customer review text
         """
     )
 
@@ -713,18 +1116,18 @@ elif page == "ℹ️ About":
         "⭐ Sentiment Mapping"
     )
 
-
     mapping_df = pd.DataFrame({
+
         "Rating": [
-            "1–2",
+            "1 – 2",
             "3",
-            "4–5"
+            "4 – 5"
         ],
 
         "Sentiment": [
-            "Negative",
-            "Neutral",
-            "Positive"
+            "😞 Negative",
+            "😐 Neutral",
+            "😊 Positive"
         ]
     })
 
@@ -734,37 +1137,45 @@ elif page == "ℹ️ About":
     )
 
 
-    st.subheader(
-        "🧠 Machine Learning"
-    )
-
-
-    st.write(
-        """
-        The project uses TF-IDF Vectorization to convert
-        review text into numerical features.
-
-        Machine learning models evaluated include:
-
-        - Logistic Regression
-        - Multinomial Naive Bayes
-        - Linear SVM
-
-        Logistic Regression was selected as the final model
-        based on the highest F1 Score.
-        """
-    )
+    st.divider()
 
 
     st.subheader(
-        "🛠️ Technologies Used"
+        "🧠 NLP Workflow"
     )
-
 
     st.write(
         """
-        Python • Pandas • NumPy • Scikit-learn •
-        TF-IDF • Joblib • Plotly • Streamlit
+        **1. Data Preparation**
+
+        Customer review data is loaded and checked.
+
+        **2. Text Preprocessing**
+
+        Review text is cleaned before modelling.
+
+        **3. Feature Engineering**
+
+        TF-IDF Vectorization converts text into numerical
+        features.
+
+        **4. Model Building**
+
+        Logistic Regression, Multinomial Naive Bayes and
+        Linear SVM are evaluated.
+
+        **5. Model Evaluation**
+
+        Models are compared using Accuracy, Precision,
+        Recall and F1 Score.
+
+        **6. Prediction**
+
+        The trained model predicts sentiment for new reviews.
+
+        **7. Deployment**
+
+        The application is deployed using Streamlit.
         """
     )
 
@@ -772,17 +1183,59 @@ elif page == "ℹ️ About":
     st.divider()
 
 
+    st.subheader(
+        "🛠️ Technologies"
+    )
+
+    tech_cols = st.columns(5)
+
+    technologies = [
+        ("🐍", "Python"),
+        ("🧠", "NLP"),
+        ("📊", "Pandas"),
+        ("🤖", "Scikit-learn"),
+        ("🌐", "Streamlit")
+    ]
+
+    for col, (icon, name) in zip(
+        tech_cols,
+        technologies
+    ):
+
+        with col:
+
+            st.info(
+                f"{icon}\n\n{name}"
+            )
+
+
+    st.divider()
+
+
+    st.subheader(
+        "💡 Project Goal"
+    )
+
     st.success(
-        "🎯 Goal: Turn customer feedback into valuable insights."
+        "Turn customer feedback into valuable insights "
+        "that can help businesses understand customers "
+        "and improve their products."
     )
 
 
-# =========================================================
+# ============================================================
 # FOOTER
-# =========================================================
+# ============================================================
 
 st.divider()
 
-st.caption(
-    "❤️ Built with Streamlit | Customer Review Sentiment Analysis"
+st.markdown(
+    """
+    <div class="footer-text">
+        ❤️ ReviewSense | Customer Review Sentiment Analysis
+        <br>
+        Built with Python • NLP • Machine Learning • Streamlit
+    </div>
+    """,
+    unsafe_allow_html=True
 )
